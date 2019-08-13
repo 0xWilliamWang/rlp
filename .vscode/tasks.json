@@ -8,10 +8,14 @@
             "type": "shell",
             "command": "C:\\tools\\mingw64\\bin\\gcc.exe",
             "args": [
+                "-g",
+                "${file}",
                 "-o",
-                "rlp.exe",
-                "rlp.c"
-            ]
+                "${fileDirname}\\${fileBasenameNoExtension}.exe"
+            ],
+            "options": {
+                "cwd": "C:\\tools\\mingw64\\bin"
+            }
         }
     ]
 }
