@@ -5,7 +5,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define RES_BUFFER_LEN 100
+#define DECODE_RESULT_LEN 100
+
 typedef enum
 {
     NONE,
@@ -13,60 +14,77 @@ typedef enum
     LIST
 } seq_type;
 
-uint8_t *rlp_decode(uint8_t *sequence, int len)
+typedef struct
 {
-    if (len == 0)
+    uint8_t **data;
+    uint8_t capacity;
+    uint8_t used_index;
+} decode_result;
+
+void rlp_decode(decode_result *my_result, uint8_t *seq, int seq_len)
+{
+    if (seq_len == 0)
         return NULL;
     seq_type type = NONE;
-    uint8_t *read_ptr;
-    int read_len = get_decode_length(sequence, len, read_ptr, &type);
+    uint8_t decoded_len;
+    int item_num = get_decode_length(seq, seq_len, &decoded_len, &type);
     if (type == STRING)
     {
+        uint8_t *src = malloc(sizeof(uint8_t) * item_num);
+        memcpy(src, seq + decoded_len, item_num);
+        if (my_result->capacity < my_result->used_index)
+        {
+            // TODO:申请更大的内存空间，并拷贝旧数据，释放旧空间
+        }
+        my_result->data[my_result->used_index++] = src;
+        rlp_decode(my_result, seq + decoded_len, seq_len - decoded_len);
     }
     else if (type == LIST)
     {
-        int res;
-        printf("====");
-        // memcpy(res_buffer, read_ptr, read_len);
-        // read_len = rlp_decode(read_ptr,)
+        rlp_decode(my_result, seq + decoded_len, seq_len - decoded_len);
     }
 }
 
-int get_decode_length(uint8_t *seq, int seq_len, uint8_t *read_ptr, seq_type *type)
+int get_decode_length(uint8_t *seq, int seq_len, uint8_t *decoded_len, seq_type *type)
 {
     uint8_t first_byte = *seq;
-
-    int read_len = 0;
-
+    int item_bytes_len = 0;
     if (first_byte <= 0x7f)
     {
-        read_len = 1;
-        type = STRING;
-        read_ptr = seq+1;
-        return read_len;
+        item_bytes_len = 0;
+        *type = STRING;
+        *decoded_len = 1;
     }
     else if (first_byte <= 0xb7 && seq_len > (first_byte - 0x80)) // 第二个条件是为了防止以后读取数据时越界
     {
-        read_len = first_byte - 0x80;
-        type = STRING;
-        read_ptr = seq+1;
-        return read_len;
+        item_bytes_len = first_byte - 0x80;
+        *type = STRING;
+        *decoded_len = 1;
     }
     else if (first_byte <= 0xbf && seq_len > (first_byte - 0xb7))
     {
-        /* code */
+        item_bytes_len = *(seq + 1);
+        *type = STRING;
+        *decoded_len = 2; // TODO:需要计算表示后续序列长度的数量
     }
     else if (first_byte <= 0xf7 && seq_len > (first_byte - 0xc0))
     {
-        /* code */
+        item_bytes_len = first_byte - 0xc0;
+        *type = LIST;
+        *decoded_len = 1;
     }
     else if (first_byte <= 0xff && seq_len > (first_byte - 0xf7))
     {
-        read_len = first_byte - 0xf7;
+        item_bytes_len = *(seq + 1);
         *type = LIST;
-        read_ptr = seq+1;
-        return read_len;
+        *decoded_len = 2; // TODO:需要计算表示后续序列长度的数量
     }
+    else
+    {
+        perror("sequence don't conform RLP encoding form");
+    }
+
+    return item_bytes_len;
 }
 
 static bool is_big_endian()
@@ -79,7 +97,7 @@ static bool is_big_endian()
         return true;
 }
 
-int hex2dec(uint8_t *seq, int len)
+int hex2dec(uint8_t *seq, int seq_len)
 {
     int dec_val = 0;
     int index = 0;
@@ -87,7 +105,7 @@ int hex2dec(uint8_t *seq, int len)
     bool big_endian = is_big_endian();
     if (big_endian)
     {
-        for (size_t i = len - 1; i >= 0; i--)
+        for (size_t i = seq_len - 1; i >= 0; i--)
         {
             tmp = (int)(seq[i]);
             dec_val += pow(16, index) * tmp;
@@ -96,7 +114,7 @@ int hex2dec(uint8_t *seq, int len)
     }
     else
     {
-        for (size_t i = 0; i <= len - 1; i++)
+        for (size_t i = 0; i <= seq_len - 1; i++)
         {
             tmp = (int)(seq[i]);
             dec_val += pow(16, index) * tmp;
@@ -170,15 +188,22 @@ int hex_to_buffer(const uint8_t *hex, size_t hex_len, uint8_t *out, size_t out_l
 
 int main(int argc, uint8_t const *argv[])
 {
+
     uint8_t seq[] = "f889008609184e72a00082271094000000000000000000000000000000000000000000a47f74657374320000000000000000000000000000000000000000000000000000006000571ca05e1d3a76fbf824220eafc8c79ad578ad2b67d01b0c2425eb1f1347e8f50882aba05bd428537f05f9830e93792f90ea6a3e2d1ee84952dd96edbae9f658f831ab13";
     uint8_t buffer[(sizeof(seq)) / 2] = {0};
     hex_to_buffer(seq, sizeof(seq) - 1, buffer, (sizeof(seq) - 1) / 2);
 
-    uint8_t *res1 = rlp_decode(buffer, sizeof(buffer) / sizeof(buffer[0]));
+    decode_result my_resut;
+    my_resut.data = malloc(sizeof(sizeof(char)) * DECODE_RESULT_LEN);
+    my_resut.capacity = DECODE_RESULT_LEN;
+    my_resut.used_index = 0;
 
-    // printf("wangkaixaun");
-    // some_test();
-    // hex2dec();
+    rlp_decode(&my_resut, buffer, sizeof(buffer) / sizeof(buffer[0]));
 
+    for (size_t i = 0; i < my_resut.used_index; i++)
+    {
+        printf("index:%d,data:%s\n",i,my_resut.data[i]);
+    }
+    
     return 0;
 }
