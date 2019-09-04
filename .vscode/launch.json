@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "debug",
+            "name": "debug on win10",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/rlp.exe",
@@ -24,6 +24,24 @@
                 }
             ],
             "preLaunchTask": "test"
+        },
+        {
+            "name": "debug on mac",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/test/test.out",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "logging": {
+                "trace": true,
+                "traceResponse": true,
+                "engineLogging": true
+            },
+            "preLaunchTask": "build on mac"
         }
     ]
 }

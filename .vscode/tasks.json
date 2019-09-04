@@ -4,7 +4,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "test",
+            "label": "build on win10",
             "type": "shell",
             "command": "C:\\tools\\mingw64\\bin\\gcc.exe",
             "args": [
@@ -16,6 +16,19 @@
             "options": {
                 "cwd": "C:\\tools\\mingw64\\bin"
             }
+        },
+        {
+            "label": "build on mac",
+            "type": "shell",
+            "command": "clang",
+            "args": [
+                "-std=c99",
+                "${workspaceFolder}/src/rlp.c",
+                "${workspaceFolder}/test/main.c",
+                "-o",
+                "${workspaceFolder}/test/test.out",
+                "--debug",
+            ],
         }
     ]
 }
