@@ -1,32 +1,9 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <assert.h>
+#include "rlp.h"
 
-#define DECODE_RESULT_LEN 100
-
-typedef enum
-{
-    NONE,
-    STRING,
-    LIST
-} seq_type;
-
-typedef struct
-{
-    uint8_t **data;
-    uint8_t capacity;
-    uint8_t used_index;
-    // decode_result * next; // TODO: 这个字段可以用来实现，保存嵌套的list
-} decode_result;
-
-int get_decode_length(uint8_t *seq, int seq_len, int *decoded_len, seq_type *type)
+uint64_t get_decode_length(uint8_t *seq, int seq_len, int *decoded_len, seq_type *type)
 {
     uint8_t first_byte = *seq;
-    int item_bytes_len = 0;
+    uint64_t item_bytes_len = 0;
     if (first_byte <= 0x7f)
     {
         item_bytes_len = 1;
@@ -53,9 +30,16 @@ int get_decode_length(uint8_t *seq, int seq_len, int *decoded_len, seq_type *typ
     }
     else if (first_byte <= 0xff && seq_len > (first_byte - 0xf7))
     {
-        item_bytes_len = *(seq + 1);
+        uint8_t len = first_byte - 0xf7;
+        uint8_t buffer_len[len];
+        uint8_t hex_len[len * 2];
+        
+        *decoded_len = 1;
+        memcpy(buffer_len, seq + *decoded_len, len);
+        *decoded_len += 1;
+        buffer_to_hex(buffer_len, len, hex_len, len * 2);
+        item_bytes_len = hex2dec(hex_len);
         *type = LIST;
-        *decoded_len = 2; // TODO:需要计算表示后续序列长度的数量
     }
     else
     {
@@ -70,7 +54,7 @@ void test_get_decode_length()
     uint8_t buf;
     int decoded_len = 0;
     seq_type type = NONE;
-    int read_len = 0;
+    uint64_t read_len = 0;
 
     hex_to_buffer("00", 2, &buf, 1);
     read_len = get_decode_length(&buf, 1, &decoded_len, &type);
@@ -98,10 +82,10 @@ int rlp_decode(decode_result *my_result, uint8_t *seq, int seq_len)
 {
     if (seq_len == 0)
         return 0;
-    seq_type type = NONE;                                                // 保存此次将要处理的数据的类型
-    int decoded_len;                                                     // 保存此次解码过的长度
-    int item_num = get_decode_length(seq, seq_len, &decoded_len, &type); // 保存需要解码的长度
-    uint8_t *start_ptr = seq + decoded_len;                              // 解码的起始地址
+    seq_type type = NONE;                                                     // 保存此次将要处理的数据的类型
+    int decoded_len;                                                          // 保存此次解码过的长度
+    uint64_t item_num = get_decode_length(seq, seq_len, &decoded_len, &type); // 保存需要解码的长度
+    uint8_t *start_ptr = seq + decoded_len;                                   // 解码的起始地址
     int need_decode_len = seq_len - decoded_len;
 
     if (type == STRING)
@@ -124,40 +108,40 @@ int rlp_decode(decode_result *my_result, uint8_t *seq, int seq_len)
     }
 }
 
-static bool is_big_endian()
+/* 十六进制数转换为十进制数 */
+uint64_t hex2dec(char *source)
 {
-    int num = 65538;                // 0x00000000 00000001 00000000 00000010
-    uint8_t *ptr = (uint8_t *)&num; // 第1个字节的内容是1则是小端字节序，为0则是大端字节序
-    if (*ptr == 2 && *(ptr + 1) == 0 && *(ptr + 2) == 1 && *(ptr + 3) == 0)
-        return false;
-    else
-        return true;
+    uint64_t sum = 0;
+    uint64_t t = 1;
+    int i, len=0;
+
+    len = strlen(source);
+    for (i = len - 1; i >= 0; i--)
+    {
+        uint64_t j = get_index_of_signs(*(source + i));
+        sum += (t * j);
+        t *= 16;
+    }
+
+    return sum;
 }
 
-int hex2dec(uint8_t *seq, int seq_len)
+/* 返回ch字符在sign数组中的序号 */
+uint64_t get_index_of_signs(char ch)
 {
-    int dec_val = 0;
-    int index = 0;
-    int tmp = 0;
-    bool big_endian = is_big_endian();
-    if (big_endian)
+    if (ch >= '0' && ch <= '9')
     {
-        for (size_t i = seq_len - 1; i >= 0; i--)
-        {
-            tmp = (int)(seq[i]);
-            dec_val += pow(16, index) * tmp;
-            index++;
-        }
+        return ch - '0';
     }
-    else
+    if (ch >= 'A' && ch <= 'F')
     {
-        for (size_t i = 0; i <= seq_len - 1; i++)
-        {
-            tmp = (int)(seq[i]);
-            dec_val += pow(16, index) * tmp;
-            index++;
-        }
+        return ch - 'A' + 10;
     }
+    if (ch >= 'a' && ch <= 'f')
+    {
+        return ch - 'a' + 10;
+    }
+    return -1;
 }
 
 static uint8_t convert_hex_to_digital(uint8_t c)
@@ -290,6 +274,15 @@ void test_rlp_decode2()
 
 int main(int argc, uint8_t const *argv[])
 {
+    int decoded_len = 0;
+    seq_type type = NONE;
+    uint64_t read_len = 0;
+
+    uint8_t buf3[3];
+    hex_to_buffer("f9df23", 6, &buf3, 3);
+    read_len = get_decode_length(buf3, 20, &decoded_len, &type);
+    assert(decoded_len == 2 && type == STRING && read_len == 17);
+
     test_get_decode_length();
     test_rlp_decode();
     test_rlp_decode1();
