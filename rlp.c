@@ -21,39 +21,15 @@ typedef struct
     uint8_t used_index;
 } decode_result;
 
-void rlp_decode(decode_result *my_result, uint8_t *seq, int seq_len)
-{
-    if (seq_len == 0)
-        return NULL;
-    seq_type type = NONE;
-    uint8_t decoded_len;
-    int item_num = get_decode_length(seq, seq_len, &decoded_len, &type);
-    if (type == STRING)
-    {
-        uint8_t *src = malloc(sizeof(uint8_t) * item_num);
-        memcpy(src, seq + decoded_len, item_num);
-        if (my_result->capacity < my_result->used_index)
-        {
-            // TODO:申请更大的内存空间，并拷贝旧数据，释放旧空间
-        }
-        my_result->data[my_result->used_index++] = src;
-        rlp_decode(my_result, seq + decoded_len, seq_len - decoded_len);
-    }
-    else if (type == LIST)
-    {
-        rlp_decode(my_result, seq + decoded_len, seq_len - decoded_len);
-    }
-}
-
 int get_decode_length(uint8_t *seq, int seq_len, uint8_t *decoded_len, seq_type *type)
 {
     uint8_t first_byte = *seq;
     int item_bytes_len = 0;
     if (first_byte <= 0x7f)
     {
-        item_bytes_len = 0;
+        item_bytes_len = 1;
         *type = STRING;
-        *decoded_len = 1;
+        *decoded_len = 0;
     }
     else if (first_byte <= 0xb7 && seq_len > (first_byte - 0x80)) // 第二个条件是为了防止以后读取数据时越界
     {
@@ -85,6 +61,33 @@ int get_decode_length(uint8_t *seq, int seq_len, uint8_t *decoded_len, seq_type 
     }
 
     return item_bytes_len;
+}
+
+int rlp_decode(decode_result *my_result, uint8_t *seq, int seq_len)
+{
+    if (seq_len == 0)
+        return 0;
+    seq_type type = NONE;                                                // 保存此次将要处理的数据的类型
+    uint8_t decoded_len;                                                 // 保存此次解码过的长度
+    int item_num = get_decode_length(seq, seq_len, &decoded_len, &type); // 保存需要解码的长度
+    uint8_t *start_ptr = seq + decoded_len;                              // 解码的起始地址
+
+    if (type == STRING)
+    {
+        if (my_result->capacity < my_result->used_index)
+        {
+            // TODO:申请更大的内存空间，并拷贝旧数据，释放旧空间
+        }
+        // TODO: used_index越界了，理想情况是不应该越界的
+        my_result->data[my_result->used_index] = malloc(sizeof(uint8_t) * item_num); 
+        memcpy(my_result->data[my_result->used_index], start_ptr, item_num);
+        my_result->used_index++;
+        rlp_decode(my_result, start_ptr, item_num);
+    }
+    else if (type == LIST)
+    {
+        rlp_decode(my_result, start_ptr, item_num);
+    }
 }
 
 static bool is_big_endian()
@@ -121,21 +124,6 @@ int hex2dec(uint8_t *seq, int seq_len)
             index++;
         }
     }
-}
-
-void some_test()
-{
-    uint8_t *strs[4];
-    strs[0] = "wangkaixuan";
-    strs[1] = "cgr";
-    strs[2] = "lh";
-    strs[3] = "wkj";
-    uint8_t ch = strs[1][0];
-    uint8_t *n = "‭EEE\0‬";
-    int num = (int)n;
-    // uint8_t *pa = ;
-    // int res = hex2dec(pa, 3);
-    // printf("some:%d",num);
 }
 
 static uint8_t convert_hex_to_digital(uint8_t c)
@@ -188,13 +176,13 @@ int hex_to_buffer(const uint8_t *hex, size_t hex_len, uint8_t *out, size_t out_l
 
 int main(int argc, uint8_t const *argv[])
 {
-
-    uint8_t seq[] = "f889008609184e72a00082271094000000000000000000000000000000000000000000a47f74657374320000000000000000000000000000000000000000000000000000006000571ca05e1d3a76fbf824220eafc8c79ad578ad2b67d01b0c2425eb1f1347e8f50882aba05bd428537f05f9830e93792f90ea6a3e2d1ee84952dd96edbae9f658f831ab13";
+    uint8_t *seq = "f889008609184e72a00082271094000000000000000000000000000000000000000000a47f74657374320000000000000000000000000000000000000000000000000000006000571ca05e1d3a76fbf824220eafc8c79ad578ad2b67d01b0c2425eb1f1347e8f50882aba05bd428537f05f9830e93792f90ea6a3e2d1ee84952dd96edbae9f658f831ab13";
     uint8_t buffer[(sizeof(seq)) / 2] = {0};
     hex_to_buffer(seq, sizeof(seq) - 1, buffer, (sizeof(seq) - 1) / 2);
 
     decode_result my_resut;
-    my_resut.data = malloc(sizeof(sizeof(char)) * DECODE_RESULT_LEN);
+    char no_use;
+    my_resut.data = malloc(sizeof(&no_use) * DECODE_RESULT_LEN);
     my_resut.capacity = DECODE_RESULT_LEN;
     my_resut.used_index = 0;
 
@@ -202,8 +190,8 @@ int main(int argc, uint8_t const *argv[])
 
     for (size_t i = 0; i < my_resut.used_index; i++)
     {
-        printf("index:%d,data:%s\n",i,my_resut.data[i]);
+        printf("index:%d,data:%s\n", i, my_resut.data[i]);
     }
-    
+
     return 0;
 }
