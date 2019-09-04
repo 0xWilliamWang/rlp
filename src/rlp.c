@@ -76,7 +76,7 @@ int rlp_decode(decode_result *my_result, uint8_t *seq, int seq_len) {
   int need_decode_len = seq_len - decoded_len;
 
   if (type == STRING) {
-    if (my_result->capacity < my_result->used_index) {
+    if (my_result->capacity < my_result->size) {
       // TODO:申请更大的内存空间，并拷贝旧数据，释放旧空间
     }
     char tmp[item_num];
@@ -84,7 +84,7 @@ int rlp_decode(decode_result *my_result, uint8_t *seq, int seq_len) {
     uint8_t *buf1 = malloc(sizeof(char) * item_num * 2 + 1);
     buffer_to_hex(tmp, item_num, buf1, item_num * 2);
     buf1[item_num * 2] = '\0';
-    my_result->data[my_result->used_index++] = buf1;
+    my_result->data[my_result->size++] = buf1;
     rlp_decode(my_result, start_ptr + item_num, need_decode_len - item_num);
   } else if (type == LIST) {
     rlp_decode(my_result, start_ptr, need_decode_len);

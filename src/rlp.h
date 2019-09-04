@@ -16,7 +16,7 @@ typedef enum { NONE, STRING, LIST } seq_type;
 typedef struct {
   uint8_t **data;
   uint8_t capacity;
-  uint8_t used_index;
+  uint8_t size;
   // decode_result * next; // TODO: 这个字段可以用来实现，保存嵌套的list
 } decode_result;
 

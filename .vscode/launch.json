@@ -31,7 +31,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/test/test.out",
             "args": [],
-            "stopAtEntry": true,
+            "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,

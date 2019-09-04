@@ -11,10 +11,9 @@ void test_rlp_decode() {
   hex_to_buffer(seq, sizeof(seq) - 1, buffer, (sizeof(seq) - 1) / 2);
 
   decode_result my_resut;
-  char no_use;
-  my_resut.data = malloc(sizeof(&no_use) * DECODE_RESULT_LEN);
+  my_resut.data = malloc(sizeof(char) * DECODE_RESULT_LEN);
   my_resut.capacity = DECODE_RESULT_LEN;
-  my_resut.used_index = 0;
+  my_resut.size = 0;
 
   rlp_decode(&my_resut, buffer, sizeof(buffer) / sizeof(buffer[0]));
 
@@ -53,11 +52,11 @@ void test_rlp_decode1() {
   char no_use;
   my_resut.data = malloc(sizeof(&no_use) * DECODE_RESULT_LEN);
   my_resut.capacity = DECODE_RESULT_LEN;
-  my_resut.used_index = 0;
+  my_resut.size = 0;
 
   rlp_decode(&my_resut, buffer, sizeof(buffer) / sizeof(buffer[0]));
 
-  for (size_t i = 0; i < my_resut.used_index; i++) {
+  for (size_t i = 0; i < my_resut.size; i++) {
     printf("index:%d,data:%s\n", i, my_resut.data[i]);
   }
 }
@@ -76,11 +75,11 @@ void test_rlp_decode2() {
   char no_use;
   my_resut.data = malloc(sizeof(&no_use) * DECODE_RESULT_LEN);
   my_resut.capacity = DECODE_RESULT_LEN;
-  my_resut.used_index = 0;
+  my_resut.size = 0;
 
   rlp_decode(&my_resut, buffer, sizeof(buffer) / sizeof(buffer[0]));
 
-  for (size_t i = 0; i < my_resut.used_index; i++) {
+  for (size_t i = 0; i < my_resut.size; i++) {
     printf("index:%d,data:%s\n", i, my_resut.data[i]);
   }
 }
