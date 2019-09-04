@@ -20,6 +20,7 @@ typedef struct
     uint8_t **data;
     uint8_t capacity;
     uint8_t used_index;
+    // decode_result * next; // TODO: 这个字段可以用来实现，保存嵌套的list
 } decode_result;
 
 int get_decode_length(uint8_t *seq, int seq_len, int *decoded_len, seq_type *type)
@@ -92,15 +93,7 @@ void test_get_decode_length()
     read_len = get_decode_length(buf2, 20, &decoded_len, &type);
     assert(decoded_len == 2 && type == STRING && read_len == 17);
 }
-
-/**
- * 期待的递归栈数据：次数,item_num,decoded_len,s tart_ptr,range
- *                  1   0x89     2           seq + 2   0x89 - 2
- *                  2   1        2           seq + 2   0x89 - 2
- *                  1   0x89     2           seq + 2   0x89 - 2
- *                  1   0x89     2           seq + 2   0x89 - 2
- * 
- */
+// NOTE: 目前只能解码没有嵌套list，且str和list的字节数量都没有超过55字节的情况
 int rlp_decode(decode_result *my_result, uint8_t *seq, int seq_len)
 {
     if (seq_len == 0)
@@ -117,15 +110,12 @@ int rlp_decode(decode_result *my_result, uint8_t *seq, int seq_len)
         {
             // TODO:申请更大的内存空间，并拷贝旧数据，释放旧空间
         }
-        // TODO: used_index越界了，理想情况是不应该越界的
         char tmp[item_num];
         memcpy(tmp, start_ptr, item_num);
         uint8_t *buf1 = malloc(sizeof(char) * item_num * 2 + 1);
-        int len = buffer_to_hex(tmp, item_num, buf1, item_num * 2);
-        buf1[item_num*2] = '\0';
-        my_result->data[my_result->used_index] = buf1;
-        my_result->used_index++;
-        
+        buffer_to_hex(tmp, item_num, buf1, item_num * 2);
+        buf1[item_num * 2] = '\0';
+        my_result->data[my_result->used_index++] = buf1;
         rlp_decode(my_result, start_ptr + item_num, need_decode_len - item_num);
     }
     else if (type == LIST)
@@ -233,10 +223,7 @@ int buffer_to_hex(const uint8_t *buffer, size_t buffer_len, uint8_t *out, size_t
     return i * 2;
 }
 
-int main(int argc, uint8_t const *argv[])
-{
-    test_get_decode_length();
-
+void test_rlp_decode(){
     uint8_t seq[] = "f889008609184e72a00082271094000000000000000000000000000000000000000000a47f74657374320000000000000000000000000000000000000000000000000000006000571ca05e1d3a76fbf824220eafc8c79ad578ad2b67d01b0c2425eb1f1347e8f50882aba05bd428537f05f9830e93792f90ea6a3e2d1ee84952dd96edbae9f658f831ab13";
     uint8_t buffer[(sizeof(seq)) / 2] = {0};
     hex_to_buffer(seq, sizeof(seq) - 1, buffer, (sizeof(seq) - 1) / 2);
@@ -249,10 +236,19 @@ int main(int argc, uint8_t const *argv[])
 
     rlp_decode(&my_resut, buffer, sizeof(buffer) / sizeof(buffer[0]));
 
-    for (size_t i = 0; i < my_resut.used_index; i++)
-    {
-        printf("index:%d,data:%s\n", i, my_resut.data[i]);
-    }
-
+    assert(strcmp(my_resut.data[0],"00") == 0);
+    assert(strcmp(my_resut.data[1],"09184e72a000") == 0);
+    assert(strcmp(my_resut.data[2],"2710") == 0);
+    assert(strcmp(my_resut.data[3],"0000000000000000000000000000000000000000") == 0);
+    assert(strcmp(my_resut.data[4],"00") == 0);
+    assert(strcmp(my_resut.data[5],"7f7465737432000000000000000000000000000000000000000000000000000000600057") == 0);
+    assert(strcmp(my_resut.data[6],"1c") == 0);
+    assert(strcmp(my_resut.data[7],"5e1d3a76fbf824220eafc8c79ad578ad2b67d01b0c2425eb1f1347e8f50882ab") == 0);
+    assert(strcmp(my_resut.data[8],"5bd428537f05f9830e93792f90ea6a3e2d1ee84952dd96edbae9f658f831ab13") == 0);
+}
+int main(int argc, uint8_t const *argv[])
+{
+    test_get_decode_length();
+    test_rlp_decode();
     return 0;
 }
