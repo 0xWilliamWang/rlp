@@ -39,7 +39,8 @@ uint64_t get_decode_length(uint8_t *seq, int seq_len, int *decoded_len, seq_type
     {
         uint8_t len = first_byte - 0xf7;
         uint8_t buffer_len[len];
-        uint8_t hex_len[len * 2];
+        uint8_t hex_len[len * 2 + 1];
+        hex_len[len * 2] = '\0';
 
         *decoded_len = 1;
         memcpy(buffer_len, seq + *decoded_len, len);
@@ -80,14 +81,14 @@ void test_get_decode_length()
     read_len = get_decode_length(buf2, 200, &decoded_len, &type);
     assert(decoded_len == 2 && type == LIST && read_len == 137);
 
-    hex_to_buffer("b911", 4, &buf2, 2);
+    hex_to_buffer("b811", 4, &buf2, 2);
     read_len = get_decode_length(buf2, 20, &decoded_len, &type);
     assert(decoded_len == 2 && type == STRING && read_len == 17);
 
     uint8_t buf3[3];
     hex_to_buffer("f9df23", 6, &buf3, 3);
     read_len = get_decode_length(buf3, 20, &decoded_len, &type);
-    assert(decoded_len == 2 && type == STRING && read_len == 51723);
+    assert(decoded_len == 2 && type == LIST && read_len == 57123);
 }
 // NOTE: 目前只能解码没有嵌套list，且str和list的字节数量都没有超过55字节的情况
 int rlp_decode(decode_result *my_result, uint8_t *seq, int seq_len)
@@ -313,10 +314,10 @@ void test_hex2dec()
 
 int main(int argc, uint8_t const *argv[])
 {
-    // test_hex2dec();
-    // test_get_decode_length();
-    // test_rlp_decode();
-    // test_rlp_decode1();
-    // test_rlp_decode2();
+    test_hex2dec();
+    test_get_decode_length();
+    test_rlp_decode();
+    test_rlp_decode1();
+    test_rlp_decode2();
     return 0;
 }
