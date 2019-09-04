@@ -18,9 +18,16 @@ uint64_t get_decode_length(uint8_t *seq, int seq_len, int *decoded_len, seq_type
     }
     else if (first_byte <= 0xbf && seq_len > (first_byte - 0xb7))
     {
-        item_bytes_len = *(seq + 1);
+        uint8_t len = first_byte - 0xb7;
+        uint8_t buffer_len[len];
+        uint8_t hex_len[len * 2 + 1];
+        hex_len[len * 2] = '\0';
+        *decoded_len = 1;
+        memcpy(buffer_len, seq + *decoded_len, len);
+        *decoded_len += 1;
+        buffer_to_hex(buffer_len, len, hex_len, len * 2);
+        item_bytes_len = hex2dec(hex_len);
         *type = STRING;
-        *decoded_len = 2; // TODO:需要计算表示后续序列长度的数量
     }
     else if (first_byte <= 0xf7 && seq_len > (first_byte - 0xc0))
     {
@@ -33,7 +40,7 @@ uint64_t get_decode_length(uint8_t *seq, int seq_len, int *decoded_len, seq_type
         uint8_t len = first_byte - 0xf7;
         uint8_t buffer_len[len];
         uint8_t hex_len[len * 2];
-        
+
         *decoded_len = 1;
         memcpy(buffer_len, seq + *decoded_len, len);
         *decoded_len += 1;
@@ -76,6 +83,11 @@ void test_get_decode_length()
     hex_to_buffer("b911", 4, &buf2, 2);
     read_len = get_decode_length(buf2, 20, &decoded_len, &type);
     assert(decoded_len == 2 && type == STRING && read_len == 17);
+
+    uint8_t buf3[3];
+    hex_to_buffer("f9df23", 6, &buf3, 3);
+    read_len = get_decode_length(buf3, 20, &decoded_len, &type);
+    assert(decoded_len == 2 && type == STRING && read_len == 51723);
 }
 // NOTE: 目前只能解码没有嵌套list，且str和list的字节数量都没有超过55字节的情况
 int rlp_decode(decode_result *my_result, uint8_t *seq, int seq_len)
@@ -113,7 +125,7 @@ uint64_t hex2dec(char *source)
 {
     uint64_t sum = 0;
     uint64_t t = 1;
-    int i, len=0;
+    int i, len = 0;
 
     len = strlen(source);
     for (i = len - 1; i >= 0; i--)
@@ -272,20 +284,39 @@ void test_rlp_decode2()
     }
 }
 
+void test_hex2dec()
+{
+    uint64_t len = hex2dec("11");
+    assert(len == 17);
+
+    len = hex2dec("fd");
+    assert(len == 253);
+
+    len = hex2dec("f3d");
+    assert(len == 3901);
+
+    len = hex2dec("f3d3");
+    assert(len == 62419);
+
+    len = hex2dec("f3d3e");
+    assert(len == 998718);
+
+    len = hex2dec("f3d3ed");
+    assert(len == 15979501);
+
+    len = hex2dec("f3d3ed2");
+    assert(len == 255672018);
+
+    len = hex2dec("f3d3ed22");
+    assert(len == 4090752290);
+}
+
 int main(int argc, uint8_t const *argv[])
 {
-    int decoded_len = 0;
-    seq_type type = NONE;
-    uint64_t read_len = 0;
-
-    uint8_t buf3[3];
-    hex_to_buffer("f9df23", 6, &buf3, 3);
-    read_len = get_decode_length(buf3, 20, &decoded_len, &type);
-    assert(decoded_len == 2 && type == STRING && read_len == 17);
-
-    test_get_decode_length();
-    test_rlp_decode();
-    test_rlp_decode1();
-    test_rlp_decode2();
+    // test_hex2dec();
+    // test_get_decode_length();
+    // test_rlp_decode();
+    // test_rlp_decode1();
+    // test_rlp_decode2();
     return 0;
 }
