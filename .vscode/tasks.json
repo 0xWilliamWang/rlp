@@ -24,6 +24,7 @@
             "args": [
                 "-std=c99",
                 "${workspaceFolder}/src/rlp.c",
+                "${workspaceFolder}/src/utils.c",
                 "${workspaceFolder}/test/main.c",
                 "-o",
                 "${workspaceFolder}/test/test.out",

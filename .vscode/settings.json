@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "rlp.h": "c"
+        "rlp.h": "c",
+        "util.h": "c",
+        "utils.h": "c"
     }
 }

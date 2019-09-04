@@ -1,4 +1,5 @@
 #include "../src/rlp.h"
+#include "../src/utils.h"
 
 void test_rlp_decode() {
   uint8_t seq[] =
